@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AfriClaw — AI That Works on 2G</title>
+
+  <!-- SEO / Social -->
+  <meta name="description" content="AfriClaw: Open-source AI assistant for Africa. M-Pesa automation, Jumia tracking, offline alerts. Runs on your phone. No cloud bills." />
+  <meta property="og:title" content="AfriClaw — AI That Works on 2G" />
+  <meta property="og:description" content="Runs on your phone. No cloud bills. African APIs only. M-Pesa · Jumia · Offline-first." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://og-image.vercel.app/AfriClaw%20%F0%9F%8C%8D.png?theme=dark&md=1&fontSize=100px" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="AfriClaw — AI That Works on 2G" />
+  <meta name="twitter:description" content="Africa's open-source AI agent. WhatsApp-native. Works offline." />
+  <meta name="theme-color" content="#0d1117" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Syne', 'sans-serif'],
+            body: ['DM Sans', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            savanna: { 400: '#FBBF24', 500: '#F59E0B', 600: '#D97706' },
+            leaf:    { 400: '#34D399', 500: '#10B981', 600: '#059669' },
+            earth:   { 800: '#1c1917', 900: '#0d0d0d', 950: '#080808' },
+          },
+          animation: {
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4,0,0.6,1) infinite',
+            'float': 'float 6s ease-in-out infinite',
+            'slide-up': 'slideUp 0.6s ease forwards',
+            'glow': 'glow 2s ease-in-out infinite alternate',
+          },
+          keyframes: {
+            float: { '0%,100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-12px)' } },
+            slideUp: { from: { opacity: 0, transform: 'translateY(30px)' }, to: { opacity: 1, transform: 'translateY(0)' } },
+            glow: { from: { boxShadow: '0 0 20px rgba(16,185,129,0.3)' }, to: { boxShadow: '0 0 40px rgba(16,185,129,0.7)' } },
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* ── Base ── */
+    *, *::before, *::after { box-sizing: border-box; }
+    html { font-family: 'DM Sans', sans-serif; }
+    body { background: #0d0d0d; color: #e5e7eb; overflow-x: hidden; }
+    body.light { background: #f5f0e8; color: #1a1a1a; }
+
+    /* ── Noise grain overlay ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      opacity: 0.4;
+    }
+    body > * { position: relative; z-index: 1; }
+
+    /* ── Topographic pattern ── */
+    .topo-bg {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ccircle cx='50' cy='50' r='40' fill='none' stroke='%2310B981' stroke-width='0.3' opacity='0.15'/%3E%3Ccircle cx='50' cy='50' r='30' fill='none' stroke='%2310B981' stroke-width='0.3' opacity='0.15'/%3E%3Ccircle cx='50' cy='50' r='20' fill='none' stroke='%2310B981' stroke-width='0.3' opacity='0.15'/%3E%3Ccircle cx='50' cy='50' r='10' fill='none' stroke='%2310B981' stroke-width='0.3' opacity='0.15'/%3E%3C/svg%3E");
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #0d0d0d; }
+    ::-webkit-scrollbar-thumb { background: #10B981; border-radius: 2px; }
+
+    /* ── Nav glass ── */
+    .glass {
+      background: rgba(13,13,13,0.8);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(16,185,129,0.1);
+    }
+    body.light .glass { background: rgba(245,240,232,0.85); border-bottom: 1px solid rgba(16,185,129,0.2); }
+
+    /* ── WhatsApp bubble ── */
+    .wa-bubble {
+      background: #1f2c34;
+      border-radius: 0 12px 12px 12px;
+      position: relative;
+    }
+    .wa-bubble.sent {
+      background: #005c4b;
+      border-radius: 12px 0 12px 12px;
+    }
+    .wa-bubble::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -8px;
+      border: 8px solid transparent;
+      border-top: 8px solid #1f2c34;
+      border-right: none;
+    }
+    .wa-bubble.sent::before {
+      left: auto; right: -8px;
+      border-top: 8px solid #005c4b;
+      border-right: 8px solid transparent;
+      border-left: none;
+    }
+
+    /* ── Typing indicator ── */
+    .typing span {
+      display: inline-block;
+      width: 6px; height: 6px;
+      background: #8b9599;
+      border-radius: 50%;
+      animation: typing-dot 1.4s infinite;
+    }
+    .typing span:nth-child(2) { animation-delay: 0.2s; }
+    .typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typing-dot {
+      0%,60%,100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-6px); opacity: 1; }
+    }
+
+    /* ── WA pulse ring ── */
+    .wa-ring {
+      animation: wa-pulse 2.5s ease-out infinite;
+    }
+    @keyframes wa-pulse {
+      0% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.5); }
+      70% { box-shadow: 0 0 0 20px rgba(37, 211, 102, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); }
+    }
+
+    /* ── Feature card hover ── */
+    .feat-card {
+      border: 1px solid rgba(255,255,255,0.07);
+      transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    .feat-card:hover {
+      transform: translateY(-6px);
+      border-color: rgba(16,185,129,0.4);
+      box-shadow: 0 20px 60px rgba(16,185,129,0.1);
+    }
+
+    /* ── Code block ── */
+    .code-block {
+      background: #0d1117;
+      border: 1px solid rgba(16,185,129,0.2);
+      position: relative;
+    }
+    body.light .code-block { background: #1c1c1c; }
+
+    /* ── Step connector line ── */
+    .step-line::after {
+      content: '';
+      position: absolute;
+      top: 50%; left: 100%;
+      width: 100%; height: 1px;
+      background: linear-gradient(90deg, rgba(16,185,129,0.5), transparent);
+    }
+
+    /* ── Scroll reveal ── */
+    .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* ── QR shimmer ── */
+    .qr-shimmer {
+      background: linear-gradient(90deg, #1a2634 25%, #243040 50%, #1a2634 75%);
+      background-size: 200% 100%;
+      animation: shimmer 2s infinite;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    /* ── Gradient text ── */
+    .grad-text {
+      background: linear-gradient(135deg, #10B981, #F59E0B 60%, #10B981);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: text-flow 4s linear infinite;
+    }
+    @keyframes text-flow { 0% { background-position: 0% } 100% { background-position: 200% } }
+
+    /* ── Flag parade ── */
+    .flag-scroll {
+      display: flex; gap: 1.5rem;
+      animation: flag-run 20s linear infinite;
+      white-space: nowrap;
+    }
+    @keyframes flag-run { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+    /* ── Mobile nav ── */
+    #mob-menu { display: none; }
+    #mob-menu.open { display: flex; }
+
+    /* ── Copy btn feedback ── */
+    .copy-btn { transition: all 0.2s ease; }
+    .copy-btn.copied { color: #10B981; }
+
+    /* Light mode overrides */
+    body.light .feat-card { border-color: rgba(0,0,0,0.1); background: #fff; }
+    body.light .wa-bubble { background: #d9fdd3; }
+    body.light .wa-bubble.sent { background: #dcf8c6; }
+    body.light .wa-bubble::before { border-top-color: #d9fdd3; }
+    body.light .wa-bubble.sent::before { border-top-color: #dcf8c6; }
+  </style>
+</head>
+
+<body class="dark font-body antialiased">
+
+<!-- ═══════════ NAV ═══════════ -->
+<nav class="glass fixed top-0 inset-x-0 z-50 px-4 py-3">
+  <div class="max-w-6xl mx-auto flex items-center justify-between">
+    <a href="#" class="flex items-center gap-2">
+      <span class="text-leaf-500 text-2xl font-display font-800 tracking-tight">Afri<span class="text-savanna-500">Claw</span></span>
+      <span class="hidden sm:inline text-xs bg-leaf-500/20 text-leaf-400 px-2 py-0.5 rounded-full font-mono">v1.0</span>
+    </a>
+
+    <!-- Desktop links -->
+    <div class="hidden md:flex items-center gap-8 text-sm text-gray-400 font-medium">
+      <a href="#features" class="hover:text-leaf-400 transition-colors">Features</a>
+      <a href="#demo" class="hover:text-leaf-400 transition-colors">Demo</a>
+      <a href="#install" class="hover:text-leaf-400 transition-colors">Install</a>
+      <a href="https://github.com/yourorg/africlaw" target="_blank" class="flex items-center gap-1.5 text-gray-300 hover:text-white transition-colors">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.49.5.09.68-.22.68-.48v-1.71c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.56 9.56 0 0112 6.8c.85.004 1.7.115 2.5.337 1.909-1.29 2.747-1.02 2.747-1.02.546 1.37.202 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10.01 10.01 0 0022 12c0-5.52-4.48-10-10-10z"/></svg>
+        GitHub
+      </a>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <!-- Dark mode toggle -->
+      <button id="theme-toggle" onclick="toggleTheme()" class="p-2 rounded-full hover:bg-white/10 transition-colors text-gray-400 hover:text-white" aria-label="Toggle theme">
+        <svg id="icon-moon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        <svg id="icon-sun" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+      </button>
+
+      <a href="https://wa.me/255123456789?text=Hi%20AfriClaw" target="_blank"
+         class="hidden sm:flex items-center gap-2 bg-[#25D366] hover:bg-[#20b858] text-white text-sm font-medium px-4 py-2 rounded-full transition-colors">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Try on WhatsApp
+      </a>
+
+      <!-- Hamburger -->
+      <button onclick="toggleMobMenu()" class="md:hidden p-2 text-gray-400 hover:text-white">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile menu -->
+  <div id="mob-menu" class="md:hidden flex-col gap-1 pt-3 pb-2 border-t border-white/10 mt-3 text-sm text-gray-300">
+    <a href="#features" onclick="toggleMobMenu()" class="block px-2 py-2 hover:text-leaf-400">Features</a>
+    <a href="#demo" onclick="toggleMobMenu()" class="block px-2 py-2 hover:text-leaf-400">Demo</a>
+    <a href="#install" onclick="toggleMobMenu()" class="block px-2 py-2 hover:text-leaf-400">Install</a>
+    <a href="https://github.com/yourorg/africlaw" target="_blank" class="block px-2 py-2 hover:text-leaf-400">⭐ GitHub</a>
+    <a href="https://wa.me/255123456789?text=Hi%20AfriClaw" target="_blank" class="mt-2 flex items-center gap-2 bg-[#25D366] text-white px-3 py-2.5 rounded-xl font-medium">
+      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+      Try on WhatsApp
+    </a>
+  </div>
+</nav>
+
+<!-- ═══════════ HERO ═══════════ -->
+<section class="topo-bg min-h-screen flex flex-col items-center justify-center pt-24 pb-16 px-4 relative overflow-hidden">
+
+  <!-- Ambient glow blobs -->
+  <div class="absolute -top-40 -left-40 w-96 h-96 bg-leaf-500/10 rounded-full blur-3xl pointer-events-none"></div>
+  <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-savanna-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+  <div class="max-w-6xl mx-auto w-full grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+
+    <!-- Left copy -->
+    <div class="text-center lg:text-left reveal">
+      <div class="inline-flex items-center gap-2 bg-leaf-500/10 border border-leaf-500/20 text-leaf-400 text-xs font-mono px-3 py-1.5 rounded-full mb-6">
+        <span class="w-1.5 h-1.5 bg-leaf-400 rounded-full animate-pulse-slow"></span>
+        Open Source · v1.0 · MIT License
+      </div>
+
+      <h1 class="font-display text-5xl sm:text-6xl lg:text-7xl font-extrabold leading-none mb-6">
+        <span class="block text-white">AI That</span>
+        <span class="block grad-text">Works on 2G.</span>
+      </h1>
+
+      <p class="text-gray-400 text-lg sm:text-xl leading-relaxed mb-4 max-w-lg mx-auto lg:mx-0">
+        Runs on your phone. No cloud bills.<br/>
+        <strong class="text-gray-200">African APIs only.</strong>
+      </p>
+
+      <div class="flex flex-wrap gap-2 justify-center lg:justify-start mb-8 text-sm text-gray-500 font-mono">
+        <span class="bg-white/5 px-2.5 py-1 rounded">📱 WhatsApp-native</span>
+        <span class="bg-white/5 px-2.5 py-1 rounded">💸 M-Pesa</span>
+        <span class="bg-white/5 px-2.5 py-1 rounded">📦 Jumia</span>
+        <span class="bg-white/5 px-2.5 py-1 rounded">📵 Offline-first</span>
+        <span class="bg-white/5 px-2.5 py-1 rounded">🗣️ Swahili / Yoruba</span>
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
+        <a href="#install" class="inline-flex items-center justify-center gap-2 bg-leaf-500 hover:bg-leaf-400 text-black font-display font-bold text-base px-7 py-3.5 rounded-xl transition-all hover:scale-105 active:scale-95">
+          Get Started Free
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+        </a>
+        <a href="#demo" class="inline-flex items-center justify-center gap-2 border border-white/15 hover:border-leaf-500/40 text-gray-300 hover:text-white font-medium text-base px-7 py-3.5 rounded-xl transition-all">
+          See Demo
+        </a>
+      </div>
+
+      <!-- Stats strip -->
+      <div class="flex gap-8 mt-10 justify-center lg:justify-start text-center">
+        <div>
+          <div class="font-display text-2xl font-bold text-white">2G</div>
+          <div class="text-xs text-gray-500 mt-0.5">min bandwidth</div>
+        </div>
+        <div class="w-px bg-white/10"></div>
+        <div>
+          <div class="font-display text-2xl font-bold text-white">54+</div>
+          <div class="text-xs text-gray-500 mt-0.5">African cities</div>
+        </div>
+        <div class="w-px bg-white/10"></div>
+        <div>
+          <div class="font-display text-2xl font-bold text-white">0₦</div>
+          <div class="text-xs text-gray-500 mt-0.5">cloud fees</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: phone mockup + QR -->
+    <div class="flex flex-col items-center gap-6 reveal" style="animation-delay:0.2s">
+
+      <!-- WhatsApp phone frame -->
+      <div class="relative w-72 sm:w-80 animate-float">
+        <!-- Phone frame -->
+        <div class="bg-[#111b21] rounded-[2.5rem] p-1.5 shadow-2xl ring-1 ring-white/10">
+          <!-- WA header -->
+          <div class="bg-[#1f2c34] rounded-[2rem] rounded-b-none px-4 py-3 flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-leaf-500/20 flex items-center justify-center text-lg">🤖</div>
+            <div>
+              <div class="text-white text-sm font-semibold">AfriClaw</div>
+              <div class="text-[#8b9599] text-xs flex items-center gap-1">
+                <span class="w-1.5 h-1.5 bg-[#25D366] rounded-full inline-block"></span>
+                online
+              </div>
+            </div>
+          </div>
+
+          <!-- Chat area -->
+          <div class="bg-[#0b141a] px-3 py-4 space-y-3 min-h-[280px] relative"
+               style="background-image: url('data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.015\'%3E%3Cpath d=\'M0 0h20L0 20z\'/%3E%3C/g%3E%3C/svg%3E')">
+
+            <!-- Date chip -->
+            <div class="text-center"><span class="bg-[#182229] text-[#8b9599] text-[10px] px-3 py-1 rounded-full">TODAY</span></div>
+
+            <!-- User message -->
+            <div class="flex justify-end">
+              <div class="wa-bubble sent text-white text-sm px-3 py-2 max-w-[80%]">
+                <p>Send 500 KES to 0712345678</p>
+                <div class="text-[#8b9599] text-[10px] mt-1 text-right flex items-center justify-end gap-1">
+                  11:42 <svg class="w-3 h-3 text-[#53bdeb]" fill="currentColor" viewBox="0 0 16 15"><path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.88a.32.32 0 0 1-.484.032l-.358-.325a.319.319 0 0 0-.484.032l-.378.48a.418.418 0 0 0 .036.54l1.32 1.267a.32.32 0 0 0 .484-.034l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185a.32.32 0 0 0 .484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"/></svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- Bot response -->
+            <div class="flex justify-start">
+              <div class="wa-bubble text-white text-sm px-3 py-2 max-w-[85%]">
+                <p>✅ M-Pesa STK Push sent to <strong>0712345678</strong> for <strong>KES 500</strong></p>
+                <p class="text-[#8b9599] text-xs mt-1">Check your phone and enter PIN.</p>
+                <p class="text-[#8b9599] text-[10px] mt-1">Ref: ws_CO_08042024</p>
+                <div class="text-[#8b9599] text-[10px] mt-1">11:42</div>
+              </div>
+            </div>
+
+            <!-- User 2 -->
+            <div class="flex justify-end">
+              <div class="wa-bubble sent text-white text-sm px-3 py-2 max-w-[80%]">
+                <p>Track order #JK9921</p>
+                <div class="text-[#8b9599] text-[10px] mt-1 text-right">11:43</div>
+              </div>
+            </div>
+
+            <!-- Typing indicator -->
+            <div class="flex justify-start" id="typing-indicator">
+              <div class="wa-bubble px-3 py-2.5">
+                <div class="typing flex items-center gap-1">
+                  <span></span><span></span><span></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Bot response 2 (hidden, fades in) -->
+            <div class="flex justify-start opacity-0 transition-opacity duration-500" id="bot-reply-2">
+              <div class="wa-bubble text-white text-sm px-3 py-2 max-w-[85%]">
+                <p>📦 <strong>Order #JK9921</strong></p>
+                <p>Status: 🚚 In Transit</p>
+                <p class="text-[#25D366] text-xs mt-1">🔗 jumia.co.ke/track</p>
+                <div class="text-[#8b9599] text-[10px] mt-1">11:43</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- WA bottom bar -->
+          <div class="bg-[#1f2c34] rounded-[2rem] rounded-t-none px-3 py-2.5 flex items-center gap-2">
+            <div class="flex-1 bg-[#2a3942] rounded-full px-4 py-2 text-[#8b9599] text-xs font-mono truncate">Hali ya hewa Nairobi...</div>
+            <div class="w-8 h-8 rounded-full bg-[#25D366] flex items-center justify-center flex-shrink-0">
+              <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Glow -->
+        <div class="absolute inset-0 rounded-[2.5rem] bg-[#25D366]/5 blur-xl -z-10 wa-ring"></div>
+      </div>
+
+      <!-- QR code block -->
+      <div class="bg-white/5 border border-white/10 rounded-2xl p-5 text-center max-w-xs w-full">
+        <p class="text-xs text-gray-400 mb-3 font-mono uppercase tracking-wider">Scan to try AfriClaw</p>
+        <!-- QR generated via JS below -->
+        <div id="qr-placeholder" class="mx-auto w-40 h-40 rounded-xl overflow-hidden qr-shimmer flex items-center justify-center">
+          <canvas id="qr-canvas"></canvas>
+        </div>
+        <p class="text-[11px] text-gray-600 mt-3">Opens WhatsApp → sends "Hi AfriClaw"</p>
+        <a href="https://wa.me/255123456789?text=Hi%20AfriClaw" target="_blank"
+           class="mt-3 inline-flex items-center gap-1.5 text-[#25D366] text-sm font-medium hover:underline">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          Open in WhatsApp
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scroll hint -->
+  <div class="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-gray-600 text-xs animate-bounce">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </div>
+</section>
+
+<!-- ═══════════ FEATURES ═══════════ -->
+<section id="features" class="py-24 px-4">
+  <div class="max-w-6xl mx-auto">
+
+    <div class="text-center mb-16 reveal">
+      <div class="inline-block text-xs font-mono text-leaf-500 bg-leaf-500/10 px-3 py-1 rounded-full mb-4 uppercase tracking-widest">Built for Hustlers</div>
+      <h2 class="font-display text-4xl sm:text-5xl font-extrabold text-white mb-4">Everything you need.<br/><span class="text-gray-500">Nothing you don't.</span></h2>
+      <p class="text-gray-400 max-w-xl mx-auto">Zero subscriptions. Zero lock-in. Runs on a Raspberry Pi or a cracked Android with 512MB RAM.</p>
+    </div>
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+
+      <!-- M-Pesa -->
+      <div class="feat-card bg-white/[0.03] rounded-2xl p-6 reveal">
+        <div class="w-12 h-12 rounded-xl bg-savanna-500/15 flex items-center justify-center text-2xl mb-5">💸</div>
+        <h3 class="font-display text-lg font-bold text-white mb-2">M-Pesa Automation</h3>
+        <p class="text-gray-400 text-sm leading-relaxed mb-4">Send money, check balance, get STK push confirmations — all from WhatsApp.</p>
+        <div class="space-y-1.5 text-xs font-mono">
+          <div class="bg-black/30 rounded-lg px-3 py-2 text-savanna-400">"Send 500 KES to 0712..."</div>
+          <div class="bg-black/30 rounded-lg px-3 py-2 text-savanna-400">"Tuma 200 kwa 0798..."</div>
+        </div>
+        <div class="mt-4 text-xs text-gray-600">Safaricom Daraja API · Sandbox + Live</div>
+      </div>
+
+      <!-- Jumia -->
+      <div class="feat-card bg-white/[0.03] rounded-2xl p-6 reveal" style="animation-delay:0.1s">
+        <div class="w-12 h-12 rounded-xl bg-orange-500/15 flex items-center justify-center text-2xl mb-5">📦</div>
+        <h3 class="font-display text-lg font-bold text-white mb-2">Jumia Tracking</h3>
+        <p class="text-gray-400 text-sm leading-relaxed mb-4">Order status, product search, and price comparisons without opening a browser.</p>
+        <div class="space-y-1.5 text-xs font-mono">
+          <div class="bg-black/30 rounded-lg px-3 py-2 text-orange-400">"Track order #JK9921"</div>
+          <div class="bg-black/30 rounded-lg px-3 py-2 text-orange-400">"Search Jumia Samsung"</div>
+        </div>
+        <div class="mt-4 text-xs text-gray-600">Jumia Affiliate API · Scrape fallback</div>
+      </div>
+
+      <!-- Offline -->
+      <div class="feat-card bg-white/[0.03] rounded-2xl p-6 reveal" style="animation-delay:0.2s">
+        <div class="w-12 h-12 rounded-xl bg-blue-500/15 flex items-center justify-center text-2xl mb-5">📵</div>
+        <h3 class="font-display text-lg font-bold text-white mb-2">Offline Alerts</h3>
+        <p class="text-gray-400 text-sm leading-relaxed mb-4">Queue tasks when offline. Auto-retry on reconnect. Cached weather up to 12h.</p>
+        <div class="mt-3 space-y-2">
+          <div class="flex items-center gap-2 text-xs text-gray-400">
+            <span class="w-1.5 h-1.5 bg-leaf-400 rounded-full"></span>SQLite local queue
+          </div>
+          <div class="flex items-center gap-2 text-xs text-gray-400">
+            <span class="w-1.5 h-1.5 bg-leaf-400 rounded-full"></span>Exponential backoff
+          </div>
+          <div class="flex items-center gap-2 text-xs text-gray-400">
+            <span class="w-1.5 h-1.5 bg-leaf-400 rounded-full"></span>SMS fallback via Twilio
+          </div>
+        </div>
+        <div class="mt-4 text-xs text-gray-600">Works on 2G · 50KB/request avg</div>
+      </div>
+
+      <!-- Multi-language -->
+      <div class="feat-card bg-white/[0.03] rounded-2xl p-6 reveal" style="animation-delay:0.3s">
+        <div class="w-12 h-12 rounded-xl bg-purple-500/15 flex items-center justify-center text-2xl mb-5">🗣️</div>
+        <h3 class="font-display text-lg font-bold text-white mb-2">Multi-language</h3>
+        <p class="text-gray-400 text-sm leading-relaxed mb-4">Auto-detects Swahili, Yoruba, and English. No switching menus.</p>
+        <div class="space-y-2 text-sm">
+          <div class="border-l-2 border-leaf-500/40 pl-3 text-gray-300 italic">"Tuma 500 KES kwa..."</div>
+          <div class="border-l-2 border-purple-500/40 pl-3 text-gray-300 italic">"Hali ya hewa Nairobi"</div>
+          <div class="border-l-2 border-savanna-500/40 pl-3 text-gray-300 italic">"Bei ya mahindi leo"</div>
+        </div>
+        <div class="mt-4 text-xs text-gray-600">Swahili · Yoruba · English · Hausa</div>
+      </div>
+    </div>
+
+    <!-- Sub-features row -->
+    <div class="mt-6 grid sm:grid-cols-3 gap-4">
+      <div class="feat-card bg-white/[0.02] rounded-xl p-4 flex items-start gap-3 reveal">
+        <span class="text-xl mt-0.5">🌤️</span>
+        <div>
+          <div class="text-sm font-semibold text-white mb-0.5">Weather + Crop Prices</div>
+          <div class="text-xs text-gray-500">OpenWeatherMap free tier · Daily SMS alerts at 6AM EAT · Maize, wheat, rice market prices cached</div>
+        </div>
+      </div>
+      <div class="feat-card bg-white/[0.02] rounded-xl p-4 flex items-start gap-3 reveal" style="animation-delay:0.1s">
+        <span class="text-xl mt-0.5">🔒</span>
+        <div>
+          <div class="text-sm font-semibold text-white mb-0.5">Sandboxed & Private</div>
+          <div class="text-xs text-gray-500">No persistent cloud. All data stays on your device in SQLite. API keys in .env only.</div>
+        </div>
+      </div>
+      <div class="feat-card bg-white/[0.02] rounded-xl p-4 flex items-start gap-3 reveal" style="animation-delay:0.2s">
+        <span class="text-xl mt-0.5">🔌</span>
+        <div>
+          <div class="text-sm font-semibold text-white mb-0.5">Plugin Architecture</div>
+          <div class="text-xs text-gray-500">Add any integration in one file. Extend with Airtel Money, Paystack, AliExpress, local APIs.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ DEMO ═══════════ -->
+<section id="demo" class="py-24 px-4 bg-white/[0.02] border-y border-white/5">
+  <div class="max-w-6xl mx-auto">
+    <div class="text-center mb-14 reveal">
+      <div class="inline-block text-xs font-mono text-savanna-500 bg-savanna-500/10 px-3 py-1 rounded-full mb-4 uppercase tracking-widest">Live Demo</div>
+      <h2 class="font-display text-4xl sm:text-5xl font-extrabold text-white mb-3">See It in Action</h2>
+      <p class="text-gray-400">Real conversations. Real APIs. No staging environment.</p>
+    </div>
+
+    <!-- Interactive chat demo -->
+    <div class="max-w-4xl mx-auto">
+      <div class="bg-[#0b141a] rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/10 reveal">
+
+        <!-- WA desktop header -->
+        <div class="bg-[#202c33] px-6 py-4 flex items-center gap-4 border-b border-white/5">
+          <div class="w-10 h-10 rounded-full bg-leaf-500/20 flex items-center justify-center text-xl">🤖</div>
+          <div>
+            <div class="text-white font-semibold">AfriClaw Bot</div>
+            <div class="text-[#8b9599] text-xs">last seen today at 11:43</div>
+          </div>
+          <div class="ml-auto flex gap-3 text-[#8b9599]">
+            <svg class="w-5 h-5 cursor-pointer hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <svg class="w-5 h-5 cursor-pointer hover:text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/></svg>
+          </div>
+        </div>
+
+        <!-- Chat body -->
+        <div class="px-6 py-6 space-y-4 min-h-64"
+             style="background-image: url('data:image/svg+xml,%3Csvg width=\'304\' height=\'304\' viewBox=\'0 0 304 304\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M44 40h0v2h2v-2h-2zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2zm4-8h2v2h-2v-2zm4 0h2v2h-2v-2z\' fill=\'%23ffffff\' fill-opacity=\'0.012\'/%3E%3C/svg%3E');">
+
+          <!-- Scenario tabs -->
+          <div class="flex gap-2 flex-wrap mb-2" id="demo-tabs">
+            <button onclick="loadScenario(0)" class="demo-tab active text-xs px-3 py-1.5 rounded-full font-mono transition-all">💸 M-Pesa</button>
+            <button onclick="loadScenario(1)" class="demo-tab text-xs px-3 py-1.5 rounded-full font-mono transition-all">📦 Jumia</button>
+            <button onclick="loadScenario(2)" class="demo-tab text-xs px-3 py-1.5 rounded-full font-mono transition-all">🌤️ Weather</button>
+            <button onclick="loadScenario(3)" class="demo-tab text-xs px-3 py-1.5 rounded-full font-mono transition-all">🌽 Crop Prices</button>
+            <button onclick="loadScenario(4)" class="demo-tab text-xs px-3 py-1.5 rounded-full font-mono transition-all">📵 Offline</button>
+          </div>
+
+          <!-- Messages -->
+          <div id="demo-messages" class="space-y-3"></div>
+        </div>
+
+        <!-- Input bar -->
+        <div class="bg-[#202c33] px-4 py-3 flex items-center gap-3">
+          <div class="flex-1 bg-[#2a3942] rounded-full px-4 py-2.5 text-[#8b9599] text-sm font-mono" id="demo-input-display">
+            Send 500 KES to 0712345678
+          </div>
+          <button class="w-10 h-10 rounded-full bg-[#25D366] flex items-center justify-center flex-shrink-0 hover:bg-[#20b858] transition-colors">
+            <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ INSTALL ═══════════ -->
+<section id="install" class="py-24 px-4">
+  <div class="max-w-4xl mx-auto">
+    <div class="text-center mb-14 reveal">
+      <div class="inline-block text-xs font-mono text-leaf-500 bg-leaf-500/10 px-3 py-1 rounded-full mb-4 uppercase tracking-widest">Install</div>
+      <h2 class="font-display text-4xl sm:text-5xl font-extrabold text-white mb-3">Up in 3 Minutes</h2>
+      <p class="text-gray-400">Linux · Raspberry Pi · Android Termux · Docker</p>
+    </div>
+
+    <!-- Steps -->
+    <div class="space-y-5">
+
+      <!-- Step 1 -->
+      <div class="reveal">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-7 h-7 rounded-full bg-leaf-500 text-black text-sm font-display font-bold flex items-center justify-center flex-shrink-0">1</div>
+          <h3 class="text-white font-semibold">Install AfriClaw</h3>
+          <span class="text-xs text-gray-500 font-mono">~2 min</span>
+        </div>
+        <div class="code-block rounded-xl overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-2.5 bg-white/5 border-b border-white/5">
+            <div class="flex gap-1.5">
+              <span class="w-3 h-3 rounded-full bg-red-500/60"></span>
+              <span class="w-3 h-3 rounded-full bg-yellow-500/60"></span>
+              <span class="w-3 h-3 rounded-full bg-green-500/60"></span>
+            </div>
+            <span class="text-xs text-gray-500 font-mono">bash</span>
+            <button onclick="copyCode('code1', this)" class="copy-btn text-xs text-gray-500 hover:text-white font-mono transition-colors">copy</button>
+          </div>
+          <pre id="code1" class="px-5 py-4 text-sm overflow-x-auto"><code><span class="text-gray-500"># One-line install (Linux / Raspberry Pi / Termux)</span>
+<span class="text-leaf-400">curl</span> <span class="text-savanna-400">-sSL</span> https://raw.githubusercontent.com/yourorg/africlaw/main/install.sh <span class="text-gray-400">|</span> <span class="text-leaf-400">bash</span>
+
+<span class="text-gray-500"># OR with Docker</span>
+<span class="text-leaf-400">docker-compose</span> up <span class="text-savanna-400">-d</span>
+
+<span class="text-gray-500"># OR manual npm</span>
+<span class="text-leaf-400">git</span> clone https://github.com/yourorg/africlaw
+<span class="text-leaf-400">cd</span> africlaw <span class="text-gray-400">&&</span> <span class="text-leaf-400">npm</span> install</code></pre>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="reveal">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-7 h-7 rounded-full bg-savanna-500 text-black text-sm font-display font-bold flex items-center justify-center flex-shrink-0">2</div>
+          <h3 class="text-white font-semibold">Add your API keys</h3>
+          <span class="text-xs text-gray-500 font-mono">Safaricom Daraja + OpenWeatherMap</span>
+        </div>
+        <div class="code-block rounded-xl overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-2.5 bg-white/5 border-b border-white/5">
+            <div class="flex gap-1.5">
+              <span class="w-3 h-3 rounded-full bg-red-500/60"></span>
+              <span class="w-3 h-3 rounded-full bg-yellow-500/60"></span>
+              <span class="w-3 h-3 rounded-full bg-green-500/60"></span>
+            </div>
+            <span class="text-xs text-gray-500 font-mono">.env</span>
+            <button onclick="copyCode('code2', this)" class="copy-btn text-xs text-gray-500 hover:text-white font-mono transition-colors">copy</button>
+          </div>
+          <pre id="code2" class="px-5 py-4 text-sm overflow-x-auto"><code><span class="text-gray-500"># M-Pesa (Safaricom Daraja portal)</span>
+<span class="text-savanna-400">MPESA_CONSUMER_KEY</span>=<span class="text-leaf-400">your_key_here</span>
+<span class="text-savanna-400">MPESA_CONSUMER_SECRET</span>=<span class="text-leaf-400">your_secret_here</span>
+<span class="text-savanna-400">MPESA_ENV</span>=<span class="text-leaf-400">sandbox</span>  <span class="text-gray-500"># → production when ready</span>
+
+<span class="text-gray-500"># Weather (free at openweathermap.org)</span>
+<span class="text-savanna-400">OPENWEATHER_API_KEY</span>=<span class="text-leaf-400">your_owm_key</span>
+
+<span class="text-gray-500"># SMS (optional, twilio.com)</span>
+<span class="text-savanna-400">TWILIO_ACCOUNT_SID</span>=<span class="text-leaf-400">ACxxxxxxxx</span>
+<span class="text-savanna-400">TWILIO_AUTH_TOKEN</span>=<span class="text-leaf-400">your_token</span></code></pre>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="reveal">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-7 h-7 rounded-full border-2 border-leaf-500 text-leaf-400 text-sm font-display font-bold flex items-center justify-center flex-shrink-0">3</div>
+          <h3 class="text-white font-semibold">Scan QR, start chatting</h3>
+          <span class="text-xs text-gray-500 font-mono">WhatsApp Linked Devices</span>
+        </div>
+        <div class="code-block rounded-xl overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-2.5 bg-white/5 border-b border-white/5">
+            <div class="flex gap-1.5">
+              <span class="w-3 h-3 rounded-full bg-red-500/60"></span>
+              <span class="w-3 h-3 rounded-full bg-yellow-500/60"></span>
+              <span class="w-3 h-3 rounded-full bg-green-500/60"></span>
+            </div>
+            <span class="text-xs text-gray-500 font-mono">bash</span>
+            <button onclick="copyCode('code3', this)" class="copy-btn text-xs text-gray-500 hover:text-white font-mono transition-colors">copy</button>
+          </div>
+          <pre id="code3" class="px-5 py-4 text-sm overflow-x-auto"><code><span class="text-leaf-400">npm</span> start
+<span class="text-gray-500"># → QR code appears in terminal</span>
+<span class="text-gray-500"># → Open WhatsApp → Settings → Linked Devices → Link</span>
+<span class="text-gray-500"># → Scan QR → Done! Session saves locally</span>
+
+<span class="text-gray-500"># Run tests</span>
+<span class="text-leaf-400">npm</span> run test:mpesa    <span class="text-gray-500"># M-Pesa sandbox</span>
+<span class="text-leaf-400">npm</span> run test:weather  <span class="text-gray-500"># OpenWeatherMap</span>
+<span class="text-leaf-400">npm</span> run test:agent    <span class="text-gray-500"># Full intent routing</span>
+
+<span class="text-gray-500"># Health check</span>
+<span class="text-leaf-400">curl</span> http://localhost:3000/health</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Platform badges -->
+    <div class="mt-10 flex flex-wrap gap-3 justify-center reveal">
+      <span class="bg-white/5 border border-white/10 rounded-full px-4 py-2 text-sm text-gray-400 flex items-center gap-2">
+        <span class="text-base">🐧</span> Ubuntu 20+
+      </span>
+      <span class="bg-white/5 border border-white/10 rounded-full px-4 py-2 text-sm text-gray-400 flex items-center gap-2">
+        <span class="text-base">🍓</span> Raspberry Pi 3/4
+      </span>
+      <span class="bg-white/5 border border-white/10 rounded-full px-4 py-2 text-sm text-gray-400 flex items-center gap-2">
+        <span class="text-base">📱</span> Android Termux
+      </span>
+      <span class="bg-white/5 border border-white/10 rounded-full px-4 py-2 text-sm text-gray-400 flex items-center gap-2">
+        <span class="text-base">🐳</span> Docker
+      </span>
+      <span class="bg-white/5 border border-white/10 rounded-full px-4 py-2 text-sm text-gray-400 flex items-center gap-2">
+        <span class="text-base">☁️</span> Netlify / Railway
+      </span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ FOOTER ═══════════ -->
+<footer class="border-t border-white/5 py-14 px-4">
+  <div class="max-w-6xl mx-auto">
+
+    <!-- Flag parade -->
+    <div class="overflow-hidden mb-12 opacity-60">
+      <div class="flag-scroll text-2xl select-none">
+        <!-- duplicated for seamless loop -->
+        <span>🇰🇪</span><span>🇳🇬</span><span>🇬🇭</span><span>🇺🇬</span><span>🇹🇿</span><span>🇿🇦</span><span>🇪🇹</span><span>🇷🇼</span><span>🇿🇼</span><span>🇸🇳</span><span>🇨🇮</span><span>🇨🇲</span><span>🇹🇳</span><span>🇲🇦</span><span>🇪🇬</span><span>🇿🇲</span><span>🇲🇿</span><span>🇦🇴</span><span>🇲🇱</span><span>🇧🇯</span>
+        <span>🇰🇪</span><span>🇳🇬</span><span>🇬🇭</span><span>🇺🇬</span><span>🇹🇿</span><span>🇿🇦</span><span>🇪🇹</span><span>🇷🇼</span><span>🇿🇼</span><span>🇸🇳</span><span>🇨🇮</span><span>🇨🇲</span><span>🇹🇳</span><span>🇲🇦</span><span>🇪🇬</span><span>🇿🇲</span><span>🇲🇿</span><span>🇦🇴</span><span>🇲🇱</span><span>🇧🇯</span>
+      </div>
+    </div>
+
+    <div class="grid sm:grid-cols-3 gap-10 mb-12">
+      <!-- Brand -->
+      <div>
+        <div class="font-display text-2xl font-extrabold mb-3">Afri<span class="text-savanna-500">Claw</span></div>
+        <p class="text-gray-500 text-sm leading-relaxed">Open-source AI assistant built for Africa's 1.4B people. Runs local. Works offline. Free forever.</p>
+        <div class="mt-4 text-sm font-display font-bold text-gray-400 italic">"Built for hustlers." 🌍</div>
+      </div>
+
+      <!-- Links -->
+      <div>
+        <div class="text-xs font-mono text-gray-600 uppercase tracking-widest mb-4">Resources</div>
+        <div class="space-y-2.5 text-sm">
+          <a href="https://github.com/yourorg/africlaw" class="flex items-center gap-2 text-gray-400 hover:text-leaf-400 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.49.5.09.68-.22.68-.48v-1.71c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.56 9.56 0 0112 6.8c.85.004 1.7.115 2.5.337 1.909-1.29 2.747-1.02 2.747-1.02.546 1.37.202 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10.01 10.01 0 0022 12c0-5.52-4.48-10-10-10z"/></svg>
+            GitHub Repository
+          </a>
+          <a href="#install" class="flex items-center gap-2 text-gray-400 hover:text-leaf-400 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Install Docs
+          </a>
+          <a href="https://developer.safaricom.co.ke" target="_blank" class="flex items-center gap-2 text-gray-400 hover:text-leaf-400 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+            Safaricom Daraja
+          </a>
+          <a href="https://openweathermap.org/api" target="_blank" class="flex items-center gap-2 text-gray-400 hover:text-leaf-400 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+            OpenWeatherMap (free)
+          </a>
+        </div>
+      </div>
+
+      <!-- GitHub star + CTA -->
+      <div>
+        <div class="text-xs font-mono text-gray-600 uppercase tracking-widest mb-4">Join the Movement</div>
+        <a href="https://github.com/yourorg/africlaw" target="_blank"
+           class="flex items-center gap-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-leaf-500/30 rounded-xl px-4 py-3.5 transition-all group mb-4">
+          <svg class="w-5 h-5 text-savanna-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.49.5.09.68-.22.68-.48v-1.71c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.56 9.56 0 0112 6.8c.85.004 1.7.115 2.5.337 1.909-1.29 2.747-1.02 2.747-1.02.546 1.37.202 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10.01 10.01 0 0022 12c0-5.52-4.48-10-10-10z"/></svg>
+          <div>
+            <div class="text-white text-sm font-semibold group-hover:text-leaf-400 transition-colors">⭐ Star on GitHub</div>
+            <div class="text-gray-500 text-xs">Help us grow the community</div>
+          </div>
+        </a>
+        <a href="https://wa.me/255123456789?text=Hi%20AfriClaw" target="_blank"
+           class="flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20b858] text-black font-display font-bold text-sm px-5 py-3 rounded-xl transition-all hover:scale-105">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          Try on WhatsApp Now
+        </a>
+      </div>
+    </div>
+
+    <!-- Bottom bar -->
+    <div class="border-t border-white/5 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="text-sm text-gray-600 font-mono">
+        MIT License · AfriClaw 2026· <span class="text-leaf-600">Made for Africa 🌍</span>
+      </div>
+      <div class="flex items-center gap-4 text-xs text-gray-600">
+        <span>Node.js 18+</span>
+        <span>·</span>
+        <span>WhatsApp Web.js</span>
+        <span>·</span>
+        <span>SQLite</span>
+        <span>·</span>
+        <span>Tailwind CSS</span>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- ═══════════ SCRIPTS ═══════════ -->
+
+<!-- QR Code generator (inline, tiny) -->
+<script>
+// Minimal QR code generator (Data URI based on WA link)
+// Using a real QR API for the placeholder
+window.addEventListener('DOMContentLoaded', () => {
+  const placeholder = document.getElementById('qr-placeholder');
+  const waUrl = 'https://wa.me/255123456789?text=Hi%20AfriClaw';
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(waUrl)}&bgcolor=1a2634&color=10B981&qzone=2`;
+
+  const img = document.createElement('img');
+  img.src = qrUrl;
+  img.alt = 'WhatsApp QR Code';
+  img.className = 'w-40 h-40 rounded-xl';
+  img.style.imageRendering = 'pixelated';
+  img.onload = () => {
+    placeholder.innerHTML = '';
+    placeholder.classList.remove('qr-shimmer');
+    placeholder.appendChild(img);
+  };
+  img.onerror = () => {
+    // Fallback: show WA icon
+    placeholder.innerHTML = '<svg class="w-16 h-16 text-[#25D366]" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>';
+    placeholder.classList.remove('qr-shimmer');
+  };
+});
+</script>
+
+<script>
+// ── Theme Toggle ──
+function toggleTheme() {
+  document.body.classList.toggle('light');
+  document.getElementById('icon-moon').classList.toggle('hidden');
+  document.getElementById('icon-sun').classList.toggle('hidden');
+}
+
+// ── Mobile Menu ──
+function toggleMobMenu() {
+  document.getElementById('mob-menu').classList.toggle('open');
+}
+
+// ── Scroll Reveal ──
+const revealObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+      revealObserver.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+// ── Copy Code ──
+async function copyCode(id, btn) {
+  const el = document.getElementById(id);
+  const text = el.textContent || el.innerText;
+  await navigator.clipboard.writeText(text.trim()).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  });
+  btn.textContent = '✓ copied';
+  btn.classList.add('copied');
+  setTimeout(() => {
+    btn.textContent = 'copy';
+    btn.classList.remove('copied');
+  }, 2000);
+}
+
+// ── Demo Scenarios ──
+const scenarios = [
+  {
+    input: 'Send 500 KES to 0712345678',
+    messages: [
+      { sent: true, text: 'Send 500 KES to 0712345678', time: '11:42' },
+      { sent: false, text: '✅ M-Pesa STK Push sent to <strong>0712345678</strong> for <strong>KES 500</strong>.\n\nCheck your phone and enter your PIN.\n\n<span style="color:#8b9599;font-size:11px">Ref: ws_CO_08042024_11421234</span>', time: '11:42' }
+    ]
+  },
+  {
+    input: 'Track order #JK9921',
+    messages: [
+      { sent: true, text: 'Track order #JK9921', time: '14:05' },
+      { sent: false, text: '📦 <strong>Order #JK9921</strong>\nStatus: 🚚 In Transit\nEst. delivery: Apr 10\n\n<span style="color:#25D366">🔗 jumia.co.ke/track/JK9921</span>', time: '14:05' }
+    ]
+  },
+  {
+    input: 'Hali ya hewa Nairobi kesho',
+    messages: [
+      { sent: true, text: 'Hali ya hewa Nairobi kesho', time: '07:00' },
+      { sent: false, text: '⛅ <strong>Hali ya Hewa - Nairobi</strong>\n📅 Kal: 19°C – 27°C\n💨 Upepo: 3.2 m/s\n💧 Unyevu: 68%\n📋 Partly cloudy', time: '07:00' }
+    ]
+  },
+  {
+    input: 'Maize price Kisumu today',
+    messages: [
+      { sent: true, text: 'Maize price Kisumu today', time: '09:30' },
+      { sent: false, text: '🌽 <strong>Maize Price — Kisumu</strong>\n💰 KSh 42–55/kg\n📈 Trend: ↑ Slight increase\n📋 Source: Market average (cached)\n\n<span style="color:#8b9599;font-size:11px">Next update: 6PM EAT</span>', time: '09:30' }
+    ]
+  },
+  {
+    input: 'Send 1000 KES to 0798765432',
+    messages: [
+      { sent: true, text: 'Send 1000 KES to 0798765432', time: '10:15' },
+      { sent: false, text: '📵 <strong>No internet right now.</strong>\n\nPayment of <strong>KES 1,000</strong> to 0798765432 has been queued.\n\nWill auto-send when connectivity returns (retry in 30s → 2m → 5m).\n\n<span style="color:#F59E0B">Queue ID: Q_00042</span>', time: '10:15' }
+    ]
+  }
+];
+
+// Tab styling
+const tabStyle = {
+  active: 'bg-leaf-500/20 text-leaf-400 border border-leaf-500/30',
+  inactive: 'bg-white/5 text-gray-500 border border-white/5 hover:text-gray-300'
+};
+
+let activeScenario = 0;
+
+function loadScenario(idx) {
+  activeScenario = idx;
+  const sc = scenarios[idx];
+  const container = document.getElementById('demo-messages');
+  const inputDisplay = document.getElementById('demo-input-display');
+
+  // Update tabs
+  document.querySelectorAll('.demo-tab').forEach((t, i) => {
+    t.className = `demo-tab text-xs px-3 py-1.5 rounded-full font-mono transition-all ${i === idx ? tabStyle.active : tabStyle.inactive}`;
+  });
+
+  inputDisplay.textContent = sc.input;
+  container.innerHTML = '';
+
+  sc.messages.forEach((msg, i) => {
+    setTimeout(() => {
+      const wrap = document.createElement('div');
+      wrap.className = `flex ${msg.sent ? 'justify-end' : 'justify-start'} opacity-0 transition-opacity duration-300`;
+      wrap.innerHTML = `
+        <div class="wa-bubble ${msg.sent ? 'sent' : ''} text-white text-sm px-3 py-2 max-w-[85%]" style="white-space:pre-line">
+          <div>${msg.text.replace(/\n/g, '<br/>')}</div>
+          <div style="color:#8b9599;font-size:10px;margin-top:4px;text-align:${msg.sent ? 'right' : 'left'}">${msg.time}</div>
+        </div>`;
+      container.appendChild(wrap);
+      requestAnimationFrame(() => { wrap.style.opacity = 1; });
+    }, i * 600);
+  });
+}
+
+// Init first scenario
+setTimeout(() => loadScenario(0), 400);
+
+// ── Hero typing animation ──
+const typingEl = document.getElementById('typing-indicator');
+const botReply2 = document.getElementById('bot-reply-2');
+if (typingEl && botReply2) {
+  setTimeout(() => {
+    typingEl.style.opacity = '0';
+    typingEl.style.transition = 'opacity 0.3s';
+    setTimeout(() => {
+      typingEl.style.display = 'none';
+      botReply2.style.opacity = '1';
+    }, 400);
+  }, 3500);
+}
+
+// ── Demo tab styles init ──
+document.querySelectorAll('.demo-tab').forEach((t, i) => {
+  t.className = `demo-tab text-xs px-3 py-1.5 rounded-full font-mono transition-all ${i === 0 ? tabStyle.active : tabStyle.inactive}`;
+});
+
+// ── Smooth scroll offset for fixed nav ──
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    const target = document.querySelector(a.getAttribute('href'));
+    if (!target) return;
+    e.preventDefault();
+    const offset = 80;
+    window.scrollTo({ top: target.offsetTop - offset, behavior: 'smooth' });
+  });
+});
+</script>
+
+</body>
+</html>
